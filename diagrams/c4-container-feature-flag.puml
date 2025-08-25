@@ -1,0 +1,63 @@
+@startuml c4-container-feature-flags
+' Roteamento entre legado e orchestrator controlado por feature flags (percentual/segmentos)
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Cliente")
+
+System_Boundary(insider, "Insider Store (rollout controlado)") {
+
+  Container(web, "Web Checkout", "Next.js/SPA", "UI do checkout.")
+  Container(mobile, "Mobile App", "React Native", "App do e-commerce.")
+
+  Container(api, "API Edge", "Node/Express ou API Gateway", "Rate limiting + roteamento controlado por flags.")
+  Container(ffs, "Feature Flag Service", "Unleash/LaunchDarkly/Togglz", "Avaliação de flags, targeting e percentuais.")
+
+  Container(legacy, "Monólito", "Java/.NET", "Fluxo de pedidos legado.")
+  ContainerDb(legacydb, "Monolith DB", "RDBMS", "Base transacional do legado.")
+
+  Container(orchestrator, "Order Orchestrator", "Node/TypeScript", "Novo serviço de pedidos, idempotente.")
+  ContainerQueue(broker, "Message Broker", "Kafka/RabbitMQ", "Eventos de pedidos/integrações.")
+  ContainerDb(ordersdb, "Orders DB", "PostgreSQL", "Fonte de verdade do orchestrator.")
+
+  Container(obs, "Observability", "Prometheus/Grafana + Logs", "Métricas, logs, traces.")
+}
+
+System_Ext(payment, "Gateway de Pagamento", "Externo")
+System_Ext(antifraud, "Antifraude", "Externo")
+System_Ext(email, "Email/SMS Provider", "Externo")
+
+Rel(customer, web, "Compra / paga")
+Rel(customer, mobile, "Compra / paga")
+
+Rel(web, api, "HTTP")
+Rel(mobile, api, "HTTP")
+
+Rel(api, ffs, "Avalia flags/segmentos/percentual")
+
+' Rota ativa (flag ON para % do tráfego)
+Rel(api, orchestrator, "Roteia pedidos (flag: on para grupo/percentual)", "HTTP")
+
+' Fallback/legado (flag OFF)
+Rel(api, legacy, "Roteia pedidos (flag: off)", "HTTP")
+
+' Tráfego sombra (dark launch): sem impacto no usuário
+Rel_D(api, orchestrator, "Mirror de requisições (shadow)", "async/no-op")
+
+Rel_R(orchestrator, ordersdb, "CRUD")
+Rel(orchestrator, broker, "Publica eventos", "async")
+Rel(orchestrator, payment, "Autorização/captura", "HTTPS")
+Rel(orchestrator, antifraud, "Análise de risco", "HTTPS")
+
+Rel(legacy, legacydb, "CRUD")
+Rel(legacy, payment, "Integração", "HTTPS")
+Rel(legacy, antifraud, "Integração", "HTTPS")
+
+Rel(broker, email, "Consumido por worker de notificação", "async")
+
+Rel(api, obs, "Métricas/Logs")
+Rel(orchestrator, obs, "Métricas/Logs/Traces")
+Rel(legacy, obs, "Métricas/Logs")
+
+SHOW_LEGEND()
+@enduml

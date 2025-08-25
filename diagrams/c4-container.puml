@@ -1,0 +1,52 @@
+@startuml c4-container
+' Contêiner: visão de serviços, dados, filas e conexões
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Cliente")
+
+System_Boundary(insider, "Insider Store") {
+
+  Container(web, "Web Checkout", "Next.js/SPA", "UI do checkout.")
+  Container(mobile, "Mobile App", "React Native", "App que consome a API do checkout.")
+  Container(api, "API Edge", "Node/Express ou API Gateway", "Gateway/roteamento, rate limiting.")
+  ContainerDb(cache, "Cache", "Redis", "Leituras quentes (ex.: catálogo, regras).")
+
+  Container(legacy, "Monólito", "Java/.NET", "Funcionalidades existentes.")
+  ContainerDb(legacydb, "Monolith DB", "RDBMS", "Base transacional do legado.")
+
+  Container(orchestrator, "Order Orchestrator", "Node/TypeScript", "Serviço distribuído de pedidos, com idempotência.")
+  ContainerQueue(broker, "Message Broker", "Kafka/RabbitMQ", "Eventos de pedido e integrações.")
+  ContainerDb(ordersdb, "Orders DB", "PostgreSQL", "Persistência de pedidos (fonte de verdade do orchestrator).")
+
+  Container(payAdapter, "Payment Adapter", "Node/Go", "Integra o orchestrator ao gateway de pagamento.")
+  Container(notify, "Notification Worker", "Node/Worker", "Assinante de eventos para envio de e-mails/SMS.")
+  Container(obs, "Observability", "Prometheus/Grafana + Logs", "Métricas, logs, traces.")
+}
+
+System_Ext(payment, "Gateway de Pagamento", "Externo")
+System_Ext(antifraud, "Antifraude", "Externo")
+System_Ext(email, "Email/SMS Provider", "Externo")
+
+Rel(customer, web, "Navega")
+Rel(customer, mobile, "Usa")
+Rel(web, api, "HTTP")
+Rel(mobile, api, "HTTP")
+Rel(api, orchestrator, "REST/HTTP")
+Rel(orchestrator, broker, "Publica eventos", "async")
+Rel_R(orchestrator, ordersdb, "CRUD")
+Rel(orchestrator, cache, "Consulta/atualiza", "TTL")
+Rel(orchestrator, legacy, "Lê dados legados")
+Rel(legacy, legacydb, "CRUD")
+Rel(orchestrator, payAdapter, "Chama")
+Rel(payAdapter, payment, "Integração", "HTTPS")
+Rel(orchestrator, antifraud, "Checagem", "HTTPS")
+Rel(notify, broker, "Consome eventos", "async")
+Rel(notify, email, "Dispara notificações", "HTTPS")
+
+Rel(orchestrator, obs, "Métricas/Logs/Traces")
+Rel(api, obs, "Métricas/Logs")
+
+SHOW_LEGEND()
+@enduml

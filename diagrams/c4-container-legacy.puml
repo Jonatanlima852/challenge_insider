@@ -1,0 +1,40 @@
+@startuml c4-container-legacy
+' Baseline: monólito centralizando checkout e integrações externas
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Cliente")
+
+System_Boundary(insider, "Insider Store (estado atual)") {
+
+  Container(web, "Web Checkout", "Next.js/SPA", "UI do checkout.")
+  Container(mobile, "Mobile App", "React Native", "App do e-commerce.")
+  Container(api, "API Edge / BFF", "Node/Express", "Gateway simples para o monólito.")
+
+  Container(legacy, "Monólito", "Java/.NET", "Checkout + catálogo + pedidos + regras.")
+  ContainerDb(legacydb, "Monolith DB", "RDBMS", "Base transacional única.")
+
+  Container(obs, "Observability", "Logs/Métricas básicos", "Visibilidade limitada.")
+}
+
+System_Ext(payment, "Gateway de Pagamento", "Externo")
+System_Ext(antifraud, "Antifraude", "Externo")
+System_Ext(email, "Email/SMS Provider", "Externo")
+
+Rel(customer, web, "Compra / paga")
+Rel(customer, mobile, "Compra / paga")
+
+Rel(web, api, "HTTP")
+Rel(mobile, api, "HTTP")
+Rel(api, legacy, "HTTP")
+
+Rel(legacy, legacydb, "CRUD")
+Rel(legacy, payment, "Integração", "HTTPS")
+Rel(legacy, antifraud, "Integração", "HTTPS")
+Rel(legacy, email, "Notificações", "HTTPS")
+
+Rel(api, obs, "Logs/Métricas")
+Rel(legacy, obs, "Logs/Métricas")
+
+SHOW_LEGEND()
+@enduml

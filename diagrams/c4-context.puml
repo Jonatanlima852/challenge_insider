@@ -1,0 +1,31 @@
+@startuml c4-context
+' Contexto: visão macro dos atores e sistemas
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_LEFT_RIGHT()
+
+Person(customer, "Cliente", "Usuário final que realiza compras.")
+Person_Ext(cs, "Time de Suporte", "Consulta/atualiza status de pedidos (via backoffice).")
+
+System_Boundary(insider, "Insider Store") {
+  System(sud, "Checkout", "Sistema sob desenho (SUD): fluxo de finalização de compra.")
+  System(legacy, "Monólito Legado", "Funcionalidades existentes do e-commerce.")
+  System(orchestrator, "Order Orchestrator", "Coordena criação e atualização de pedidos.")
+}
+
+System_Ext(payment, "Gateway de Pagamento", "Processamento de pagamentos.")
+System_Ext(antifraud, "Antifraude", "Análise de risco de transação.")
+System_Ext(email, "Email/SMS Provider", "Disparo de notificações.")
+System_Ext(analytics, "Analytics/CDP", "Telemetria de eventos e funil.")
+
+Rel(customer, sud, "Compra / paga")
+Rel(sud, orchestrator, "Cria/atualiza pedido")
+Rel(orchestrator, legacy, "Consulta dados legados quando necessário")
+Rel(orchestrator, payment, "Autorização/captura")
+Rel(orchestrator, antifraud, "Análise de risco")
+Rel(orchestrator, email, "Confirmação / status")
+Rel(sud, analytics, "Eventos de funil")
+Rel(cs, orchestrator, "Consulta status de pedido")
+
+SHOW_LEGEND()
+@enduml

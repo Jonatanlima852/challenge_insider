@@ -1,0 +1,36 @@
+@startuml c4-component
+' Componente: zoom no Order Orchestrator
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_LEFT_RIGHT()
+
+Container_Boundary(orchestrator, "Order Orchestrator (Node/TS)") {
+
+  Component(apiCtl, "OrderEventsController", "HTTP Controller", "Recebe eventos do checkout (REST).")
+  Component(idem, "Idempotency Filter", "Middleware", "Gera/valida chave idempotente e serve replay dentro do TTL.")
+  Component(saga, "OrderSaga/Coordinator", "Workflow", "Coordena passos de criar pedido, antifraude, pagamento, notificação.")
+  Component(repo, "OrderRepository", "Data Access", "CRUD de pedidos (Orders DB).")
+  Component(outbox, "OutboxPublisher", "Mensageria", "Publica eventos confirmados no broker (padrão Outbox).")
+  Component(metrics, "Telemetry", "Obs", "Logs estruturados, métricas e traces.")
+}
+
+ContainerDb(ordersdb, "Orders DB", "PostgreSQL")
+ContainerQueue(broker, "Message Broker", "Kafka/RabbitMQ")
+System_Ext(payment, "Gateway de Pagamento", "Externo")
+System_Ext(antifraud, "Antifraude", "Externo")
+System_Ext(email, "Email/SMS Provider", "Externo")
+
+Rel(apiCtl, idem, "Validação de chave")
+Rel(idem, saga, "Encaminha evento único")
+Rel(saga, repo, "Persiste/atualiza pedido")
+Rel(saga, antifraud, "Consulta risco", "HTTPS")
+Rel(saga, payment, "Autoriza/Captura", "HTTPS")
+Rel(saga, outbox, "Publica eventos confirmados")
+Rel(outbox, broker, "Envia")
+Rel(saga, metrics, "Registra telemetry")
+Rel(apiCtl, metrics, "Registra telemetry")
+Rel(repo, ordersdb, "CRUD")
+Rel(broker, email, "Consumido por Notification Worker (fora do contêiner)")
+
+SHOW_LEGEND()
+@enduml

@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  orchestrator-poc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: orchestrator-poc:latest
+    ports:
+      - "3000:3000"
+    environment:
+      IDEMPOTENCY_TTL_MS: "60000"
+      PORT: "3000"
+      NODE_ENV: "production"
+    restart: unless-stopped

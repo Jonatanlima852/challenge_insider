@@ -1,0 +1,35 @@
+@startuml c4-component-poc
+' Estrutura interna da PoC (idempotência) em Node/TS
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+LAYOUT_LEFT_RIGHT()
+
+Container_Boundary(poc, "PoC Idempotent Orchestrator (Node/TypeScript)") {
+  Component(http, "HTTP Server (Express)", "HTTP", "Expõe /order-events, /orders/:id, /metrics, /health.")
+  Component(ctrl, "OrderEventsController", "Controller", "Valida payload e aciona pipeline.")
+  Component(idem, "Idempotency Cache", "Map+TTL", "Gera/consulta chave (header ou orderId:eventId).")
+  Component(proc, "OrderProcessor", "Serviço", "Executa efeito colateral único (cria pedido).")
+  Component(store, "OrdersStore", "Map", "Armazena pedidos criados.")
+  Component(metrics, "Metrics/Logs", "Obs", "Contadores simples: requests, replays, ordersCreated.")
+  Component(hk, "Housekeeper", "Interval", "Remove entradas expiradas do cache idempotente.")
+  Component(cfg, "Config", "ENV", "PORT, IDEMPOTENCY_TTL_MS.")
+}
+
+Person(consumer, "Cliente de teste (curl/postman)")
+
+Rel(consumer, http, "HTTP")
+Rel(http, ctrl, "Chama")
+Rel(ctrl, idem, "Busca/gera chave idempotente")
+Rel(idem, ctrl, "Retorna replay (se válido)")
+
+Rel(ctrl, proc, "Processa evento (no miss)")
+Rel(proc, store, "Cria/consulta pedido")
+Rel(ctrl, idem, "Armazena resposta", "se sucesso")
+
+Rel(http, metrics, "Registra métricas")
+Rel(ctrl, metrics, "Registra métricas")
+Rel(hk, idem, "Limpa entradas expiradas")
+Rel(cfg, http, "Configura")
+Rel(cfg, idem, "Configura TTL")
+
+SHOW_LEGEND()
+@enduml
